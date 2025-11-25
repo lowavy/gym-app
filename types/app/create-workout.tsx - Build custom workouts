@@ -1,0 +1,431 @@
+// app/create-workout.tsx - Build custom workouts
+
+import React, { useState } from 'react'
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+} from 'react-native'
+import { router } from 'expo-router'
+import { useDispatch } from 'react-redux'
+import { startWorkout } from '@/state/slices/workoutSlice'
+
+interface SelectedExercise {
+  exerciseId: string
+  exercise: Exercise
+  sets: number
+  targetReps: number
+  targetWeight?: number
+  notes?: string
+}
+
+export default function CreateWorkoutScreen() {
+  const dispatch = useDispatch()
+  const [workoutName, setWorkoutName] = useState('')
+  const [workoutDescription, setWorkoutDescription] = useState('')
+  const [selectedExercises, setSelectedExercises] = useState<SelectedExercise[]>([])
+
+  // Sample exercises for selection
+  const availableExercises: Exercise[] = [
+    {
+      id: '1',
+      name: 'Barbell Bench Press',
+      description: 'Classic chest builder',
+      category: 'strength',
+      muscleGroups: ['chest', 'shoulders', 'arms'],
+      equipment: ['barbell'],
+      difficulty: 'intermediate',
+      instructions: ['Lie on bench', 'Lower bar', 'Press up'],
+      isCustom: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: '2',
+      name: 'Barbell Squat',
+      description: 'Leg day essential',
+      category: 'strength',
+      muscleGroups: ['legs', 'glutes', 'core'],
+      equipment: ['barbell'],
+      difficulty: 'advanced',
+      instructions: ['Bar on back', 'Squat down', 'Stand up'],
+      isCustom: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: '3',
+      name: 'Deadlift',
+      description: 'Total body strength',
+      category: 'strength',
+      muscleGroups: ['back', 'legs', 'glutes'],
+      equipment: ['barbell'],
+      difficulty: 'advanced',
+      instructions: ['Grip bar', 'Hinge at hips', 'Pull up'],
+      isCustom: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: '4',
+      name: 'Pull-Ups',
+      description: 'Back width builder',
+      category: 'strength',
+      muscleGroups: ['back', 'arms'],
+      equipment: ['bodyweight'],
+      difficulty: 'intermediate',
+      instructions: ['Hang from bar', 'Pull up', 'Lower down'],
+      isCustom: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: '5',
+      name: 'Overhead Press',
+      description: 'Shoulder developer',
+      category: 'strength',
+      muscleGroups: ['shoulders', 'arms', 'core'],
+      equipment: ['barbell'],
+      difficulty: 'intermediate',
+      instructions: ['Bar at shoulders', 'Press overhead', 'Lower down'],
+      isCustom: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  ]
+
+  const addExercise = (exercise: Exercise) => {
+    setSelectedExercises([
+      ...selectedExercises,
+      {
+        exerciseId: exercise.id,
+        exercise,
+        sets: 3,
+        targetReps: 10,
+        notes: '',
+      },
+    ])
+  }
+
+  const removeExercise = (index: number) => {
+    setSelectedExercises(selectedExercises.filter((_, i) => i !== index))
+  }
+
+  const updateExercise = (index: number, updates: Partial<SelectedExercise>) => {
+    const updated = [...selectedExercises]
+    updated[index] = { ...updated[index], ...updates }
+    setSelectedExercises(updated)
+  }
+
+  const moveExercise = (index: number, direction: 'up' | 'down') => {
+    if (
+      (direction === 'up' && index === 0) ||
+      (direction === 'down' && index === selectedExercises.length - 1)
+    ) {
+      return
+    }
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1
+    const updated = [...selectedExercises]
+    const temp = updated[index]
+    updated[index] = updated[newIndex]
+    updated[newIndex] = temp
+    setSelectedExercises(updated)
+  }
+
+  const handleSaveWorkout = () => {
+    if (!workoutName.trim()) {
+      Alert.alert('Error', 'Please enter a workout name')
+      return
+    }
+
+    if (selectedExercises.length === 0) {
+      Alert.alert('Error', 'Please add at least one exercise')
+      return
+    }
+
+    // Convert to WorkoutSession format
+    const workout: WorkoutSession = {
+      id: `workout_${Date.now()}`,
+      userId: 'user1',
+      name: workoutName,
+      description: workoutDescription,
+      status: 'planned',
+      exercises: selectedExercises.map((ex, index) => ({
+        id: `ex_${index}`,
+        exerciseId: ex.exerciseId,
+        exercise: ex.exercise,
+        order: index + 1,
+        notes: ex.notes,
+        sets: Array.from({ length: ex.sets }, (_, setIndex) => ({
+          id: `set_${index}_${setIndex}`,
+          setNumber: setIndex + 1,
+          type: 'working' as const,
+          targetReps: ex.targetReps,
+          targetWeight: ex.targetWeight,
+          restTime: 90,
+          completed: false,
+        })),
+      })),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+
+    Alert.alert(
+      'Workout Ready',
+      'Would you like to start this workout now or save it as a template?',
+      [
+        {
+          text: 'Save Template',
+          onPress: () => {
+            // TODO: Save to templates
+            router.back()
+          },
+        },
+        {
+          text: 'Start Now',
+          onPress: () => {
+            dispatch(startWorkout(workout))
+            router.push('/active-workout')
+          },
+        },
+      ]
+    )
+  }
+
+  return (
+    <View className="flex-1 bg-dark-900">
+      {/* Header */}
+      <View className="bg-dark-700 px-6 py-4 border-b border-dark-50">
+        <View className="flex-row items-center justify-between mb-4">
+          <View className="flex-row items-center flex-1">
+            <TouchableOpacity onPress={() => router.back()} className="mr-4">
+              <Text className="text-primary-500 text-2xl">←</Text>
+            </TouchableOpacity>
+            <Text className="text-dark-50 text-2xl font-bold">Create Workout</Text>
+          </View>
+          <TouchableOpacity onPress={handleSaveWorkout}>
+            <Text className="text-primary-500 font-bold text-lg">Save</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView className="flex-1 p-6">
+        {/* Workout Details */}
+        <View className="bg-dark-700 rounded-2xl p-5 mb-6">
+          <Text className="text-dark-50 text-lg font-bold mb-4">
+            Workout Details
+          </Text>
+
+          <View className="mb-4">
+            <Text className="text-dark-700 text-sm mb-2">Workout Name *</Text>
+            <TextInput
+              value={workoutName}
+              onChangeText={setWorkoutName}
+              placeholder="e.g., Upper Body Power"
+              placeholderTextColor="#6B7280"
+              className="bg-dark-900 text-dark-50 rounded-lg px-4 py-3"
+            />
+          </View>
+
+          <View>
+            <Text className="text-dark-700 text-sm mb-2">Description (Optional)</Text>
+            <TextInput
+              value={workoutDescription}
+              onChangeText={setWorkoutDescription}
+              placeholder="Brief description of this workout..."
+              placeholderTextColor="#6B7280"
+              multiline
+              numberOfLines={3}
+              className="bg-dark-900 text-dark-50 rounded-lg px-4 py-3"
+              textAlignVertical="top"
+            />
+          </View>
+        </View>
+
+        {/* Selected Exercises */}
+        {selectedExercises.length > 0 && (
+          <View className="mb-6">
+            <Text className="text-dark-50 text-lg font-bold mb-4">
+              Exercises ({selectedExercises.length})
+            </Text>
+
+            {selectedExercises.map((selected, index) => (
+              <SelectedExerciseCard
+                key={index}
+                selected={selected}
+                index={index}
+                isFirst={index === 0}
+                isLast={index === selectedExercises.length - 1}
+                onUpdate={(updates) => updateExercise(index, updates)}
+                onRemove={() => removeExercise(index)}
+                onMoveUp={() => moveExercise(index, 'up')}
+                onMoveDown={() => moveExercise(index, 'down')}
+              />
+            ))}
+          </View>
+        )}
+
+        {/* Add Exercise Section */}
+        <View className="mb-6">
+          <Text className="text-dark-50 text-lg font-bold mb-4">
+            Add Exercises
+          </Text>
+
+          <TouchableOpacity
+            onPress={() => router.push('/exercise-library')}
+            className="bg-primary-500/10 border-2 border-dashed border-primary-500 rounded-2xl p-6 items-center mb-4"
+          >
+            <Text className="text-6xl mb-2">🔍</Text>
+            <Text className="text-primary-500 font-bold text-lg">
+              Browse Exercise Library
+            </Text>
+            <Text className="text-dark-700 text-center mt-1">
+              Search from 100+ exercises
+            </Text>
+          </TouchableOpacity>
+
+          <Text className="text-dark-700 text-sm mb-3">Quick Add:</Text>
+          
+          {availableExercises.map((exercise) => (
+            <TouchableOpacity
+              key={exercise.id}
+              onPress={() => addExercise(exercise)}
+              className="bg-dark-700 rounded-xl p-4 mb-3 flex-row items-center"
+            >
+              <View className="flex-1">
+                <Text className="text-dark-50 font-semibold mb-1">
+                  {exercise.name}
+                </Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {exercise.muscleGroups.slice(0, 2).map((muscle) => (
+                    <Text key={muscle} className="text-primary-500 text-xs capitalize">
+                      {muscle}
+                    </Text>
+                  ))}
+                </View>
+              </View>
+              <View className="bg-primary-500 w-10 h-10 rounded-full items-center justify-center">
+                <Text className="text-white text-xl font-bold">+</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  )
+}
+
+// Selected Exercise Card
+function SelectedExerciseCard({
+  selected,
+  index,
+  isFirst,
+  isLast,
+  onUpdate,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+}: any) {
+  return (
+    <View className="bg-dark-700 rounded-2xl p-5 mb-4">
+      <View className="flex-row items-start justify-between mb-4">
+        <View className="flex-1">
+          <Text className="text-dark-50 text-lg font-bold mb-1">
+            {index + 1}. {selected.exercise.name}
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            {selected.exercise.muscleGroups.map((muscle: string) => (
+              <View key={muscle} className="bg-primary-500/20 px-2 py-1 rounded">
+                <Text className="text-primary-500 text-xs capitalize">{muscle}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <TouchableOpacity onPress={onRemove} className="ml-3">
+          <Text className="text-red-500 text-2xl">×</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Sets and Reps */}
+      <View className="flex-row gap-3 mb-4">
+        <View className="flex-1">
+          <Text className="text-dark-700 text-xs mb-2">Sets</Text>
+          <TextInput
+            value={selected.sets.toString()}
+            onChangeText={(text) => {
+              const num = parseInt(text) || 1
+              onUpdate({ sets: Math.max(1, Math.min(10, num)) })
+            }}
+            keyboardType="number-pad"
+            className="bg-dark-900 text-dark-50 rounded-lg px-4 py-3 text-center font-bold"
+          />
+        </View>
+
+        <View className="flex-1">
+          <Text className="text-dark-700 text-xs mb-2">Target Reps</Text>
+          <TextInput
+            value={selected.targetReps.toString()}
+            onChangeText={(text) => {
+              const num = parseInt(text) || 1
+              onUpdate({ targetReps: Math.max(1, num) })
+            }}
+            keyboardType="number-pad"
+            className="bg-dark-900 text-dark-50 rounded-lg px-4 py-3 text-center font-bold"
+          />
+        </View>
+
+        <View className="flex-1">
+          <Text className="text-dark-700 text-xs mb-2">Weight (kg)</Text>
+          <TextInput
+            value={selected.targetWeight?.toString() || ''}
+            onChangeText={(text) => {
+              const num = parseFloat(text)
+              onUpdate({ targetWeight: isNaN(num) ? undefined : num })
+            }}
+            keyboardType="decimal-pad"
+            placeholder="Optional"
+            placeholderTextColor="#6B7280"
+            className="bg-dark-900 text-dark-50 rounded-lg px-4 py-3 text-center font-bold"
+          />
+        </View>
+      </View>
+
+      {/* Notes */}
+      <TextInput
+        value={selected.notes || ''}
+        onChangeText={(text) => onUpdate({ notes: text })}
+        placeholder="Exercise notes (optional)..."
+        placeholderTextColor="#6B7280"
+        className="bg-dark-900 text-dark-50 rounded-lg px-4 py-2 mb-3"
+      />
+
+      {/* Reorder Buttons */}
+      <View className="flex-row gap-2">
+        <TouchableOpacity
+          onPress={onMoveUp}
+          disabled={isFirst}
+          className={`flex-1 rounded-lg py-2 items-center ${
+            isFirst ? 'bg-dark-900 opacity-50' : 'bg-dark-900'
+          }`}
+        >
+          <Text className="text-dark-50 font-semibold">↑ Move Up</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={onMoveDown}
+          disabled={isLast}
+          className={`flex-1 rounded-lg py-2 items-center ${
+            isLast ? 'bg-dark-900 opacity-50' : 'bg-dark-900'
+          }`}
+        >
+          <Text className="text-dark-50 font-semibold">↓ Move Down</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  )
+}
