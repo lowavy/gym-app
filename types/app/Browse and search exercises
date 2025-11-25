@@ -1,0 +1,461 @@
+// app/exercise-library.tsx - Browse and search exercises
+
+import React, { useState } from 'react'
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Modal,
+} from 'react-native'
+import { router } from 'expo-router'
+
+type FilterType = 'all' | ExerciseCategory | MuscleGroup
+
+export default function ExerciseLibraryScreen() {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedFilter, setSelectedFilter] = useState<FilterType>('all')
+  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null)
+
+  // Sample exercise library
+  const exercises: Exercise[] = [
+    {
+      id: '1',
+      name: 'Barbell Bench Press',
+      description: 'The king of chest exercises. Build massive pecs and pressing strength.',
+      category: 'strength',
+      muscleGroups: ['chest', 'shoulders', 'arms'],
+      equipment: ['barbell'],
+      difficulty: 'intermediate',
+      instructions: [
+        'Lie flat on the bench with feet firmly on the ground',
+        'Grip the bar slightly wider than shoulder-width',
+        'Lower the bar to mid-chest with control',
+        'Press the bar back up explosively',
+        'Lock out arms at the top without overextending',
+      ],
+      tips: [
+        'Keep your shoulder blades retracted throughout',
+        'Maintain a slight arch in your lower back',
+        'Drive through your feet for more power',
+      ],
+      isCustom: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: '2',
+      name: 'Barbell Back Squat',
+      description: 'The ultimate lower body builder. Develop strength, size, and power.',
+      category: 'strength',
+      muscleGroups: ['legs', 'glutes', 'core'],
+      equipment: ['barbell'],
+      difficulty: 'advanced',
+      instructions: [
+        'Position bar on upper traps',
+        'Feet shoulder-width apart, toes slightly out',
+        'Break at hips and knees simultaneously',
+        'Descend until thighs are parallel or below',
+        'Drive through heels to stand',
+      ],
+      tips: [
+        'Keep your chest up and core tight',
+        'Push knees out in line with toes',
+        'Maintain neutral spine throughout',
+      ],
+      isCustom: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: '3',
+      name: 'Deadlift',
+      description: 'Total body strength builder. Develops posterior chain and overall power.',
+      category: 'strength',
+      muscleGroups: ['back', 'legs', 'glutes'],
+      equipment: ['barbell'],
+      difficulty: 'advanced',
+      instructions: [
+        'Stand with feet hip-width apart, bar over mid-foot',
+        'Grip bar just outside legs',
+        'Hinge at hips, keep back straight',
+        'Drive through heels, extend hips',
+        'Stand tall, squeeze glutes at top',
+      ],
+      tips: [
+        'Engage lats by pulling bar into shins',
+        'Keep bar close to body throughout',
+        'Think "push the floor away"',
+      ],
+      isCustom: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: '4',
+      name: 'Pull-Ups',
+      description: 'Bodyweight back builder. Develop width and pulling strength.',
+      category: 'strength',
+      muscleGroups: ['back', 'arms'],
+      equipment: ['bodyweight'],
+      difficulty: 'intermediate',
+      instructions: [
+        'Hang from bar with palms facing away',
+        'Pull shoulder blades down and back',
+        'Pull until chin clears bar',
+        'Lower with control',
+        'Fully extend arms at bottom',
+      ],
+      tips: [
+        'Avoid swinging or kipping',
+        'Think "elbows to ribs"',
+        'Use assistance band if needed',
+      ],
+      isCustom: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: '5',
+      name: 'Overhead Press',
+      description: 'Build strong, powerful shoulders with this fundamental pressing movement.',
+      category: 'strength',
+      muscleGroups: ['shoulders', 'arms', 'core'],
+      equipment: ['barbell'],
+      difficulty: 'intermediate',
+      instructions: [
+        'Stand with feet hip-width apart',
+        'Bar at shoulder height, hands just outside shoulders',
+        'Brace core and glutes',
+        'Press bar straight up, moving head back slightly',
+        'Lock out overhead, shrug at top',
+      ],
+      tips: [
+        'Keep elbows slightly forward',
+        'Squeeze glutes to protect lower back',
+        'Press in a straight line',
+      ],
+      isCustom: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: '6',
+      name: 'Burpees',
+      description: 'Full-body cardio exercise that builds endurance and burns calories fast.',
+      category: 'cardio',
+      muscleGroups: ['full-body'],
+      equipment: ['bodyweight'],
+      difficulty: 'beginner',
+      instructions: [
+        'Start standing',
+        'Drop hands to floor and jump feet back',
+        'Perform a push-up',
+        'Jump feet back to hands',
+        'Explode upward with a jump',
+      ],
+      tips: [
+        'Maintain tight core throughout',
+        'Land softly to protect joints',
+        'Modify by stepping back instead of jumping',
+      ],
+      isCustom: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  ]
+
+  const filteredExercises = exercises.filter(exercise => {
+    const matchesSearch = exercise.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         exercise.description.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    const matchesFilter = selectedFilter === 'all' ||
+                         exercise.category === selectedFilter ||
+                         exercise.muscleGroups.includes(selectedFilter as MuscleGroup)
+    
+    return matchesSearch && matchesFilter
+  })
+
+  return (
+    <View className="flex-1 bg-dark-900">
+      {/* Header */}
+      <View className="bg-dark-700 px-6 py-4 border-b border-dark-50">
+        <View className="flex-row items-center mb-4">
+          <TouchableOpacity onPress={() => router.back()} className="mr-4">
+            <Text className="text-primary-500 text-2xl">←</Text>
+          </TouchableOpacity>
+          <Text className="text-dark-50 text-2xl font-bold">Exercise Library</Text>
+        </View>
+
+        {/* Search */}
+        <View className="bg-dark-900 rounded-xl px-4 py-3 flex-row items-center">
+          <Text className="text-dark-700 mr-3">🔍</Text>
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search exercises..."
+            placeholderTextColor="#6B7280"
+            className="flex-1 text-dark-50"
+          />
+        </View>
+      </View>
+
+      {/* Filters */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className="px-6 py-4 border-b border-dark-700"
+        contentContainerStyle={{ gap: 8 }}
+      >
+        <FilterChip
+          label="All"
+          active={selectedFilter === 'all'}
+          onPress={() => setSelectedFilter('all')}
+        />
+        <FilterChip
+          label="Strength"
+          active={selectedFilter === 'strength'}
+          onPress={() => setSelectedFilter('strength')}
+        />
+        <FilterChip
+          label="Cardio"
+          active={selectedFilter === 'cardio'}
+          onPress={() => setSelectedFilter('cardio')}
+        />
+        <FilterChip
+          label="Chest"
+          active={selectedFilter === 'chest'}
+          onPress={() => setSelectedFilter('chest')}
+        />
+        <FilterChip
+          label="Back"
+          active={selectedFilter === 'back'}
+          onPress={() => setSelectedFilter('back')}
+        />
+        <FilterChip
+          label="Legs"
+          active={selectedFilter === 'legs'}
+          onPress={() => setSelectedFilter('legs')}
+        />
+        <FilterChip
+          label="Shoulders"
+          active={selectedFilter === 'shoulders'}
+          onPress={() => setSelectedFilter('shoulders')}
+        />
+        <FilterChip
+          label="Arms"
+          active={selectedFilter === 'arms'}
+          onPress={() => setSelectedFilter('arms')}
+        />
+      </ScrollView>
+
+      {/* Exercise List */}
+      <ScrollView className="flex-1 p-6">
+        <Text className="text-dark-700 text-sm mb-4">
+          {filteredExercises.length} exercises found
+        </Text>
+
+        {filteredExercises.map(exercise => (
+          <ExerciseCard
+            key={exercise.id}
+            exercise={exercise}
+            onPress={() => setSelectedExercise(exercise)}
+          />
+        ))}
+
+        {filteredExercises.length === 0 && (
+          <View className="items-center py-12">
+            <Text className="text-6xl mb-4">🔍</Text>
+            <Text className="text-dark-700 text-center mb-2">No exercises found</Text>
+            <Text className="text-dark-700 text-center text-sm">
+              Try adjusting your search or filters
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Create Exercise Button */}
+      <TouchableOpacity
+        onPress={() => router.push('/create-exercise')}
+        className="absolute bottom-6 right-6 bg-primary-500 w-16 h-16 rounded-full items-center justify-center shadow-lg"
+        style={{
+          shadowColor: '#10B981',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 8,
+        }}
+      >
+        <Text className="text-white text-3xl font-bold">+</Text>
+      </TouchableOpacity>
+
+      {/* Exercise Detail Modal */}
+      <ExerciseDetailModal
+        exercise={selectedExercise}
+        visible={!!selectedExercise}
+        onClose={() => setSelectedExercise(null)}
+      />
+    </View>
+  )
+}
+
+// Filter Chip Component
+function FilterChip({ label, active, onPress }: any) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className={`px-4 py-2 rounded-full ${
+        active ? 'bg-primary-500' : 'bg-dark-700'
+      }`}
+    >
+      <Text
+        className={`font-semibold ${
+          active ? 'text-white' : 'text-dark-700'
+        }`}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  )
+}
+
+// Exercise Card Component
+function ExerciseCard({ exercise, onPress }: any) {
+  const difficultyColors = {
+    beginner: 'bg-green-500/20 text-green-500',
+    intermediate: 'bg-yellow-500/20 text-yellow-500',
+    advanced: 'bg-orange-500/20 text-orange-500',
+    expert: 'bg-red-500/20 text-red-500',
+  }
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className="bg-dark-700 rounded-2xl p-5 mb-4"
+    >
+      <View className="flex-row justify-between items-start mb-3">
+        <View className="flex-1">
+          <Text className="text-dark-50 text-lg font-bold mb-1">
+            {exercise.name}
+          </Text>
+          <Text className="text-dark-700 text-sm" numberOfLines={2}>
+            {exercise.description}
+          </Text>
+        </View>
+        <View className={`px-3 py-1 rounded-full ml-3 ${difficultyColors[exercise.difficulty]}`}>
+          <Text className={`text-xs font-semibold capitalize ${difficultyColors[exercise.difficulty].split(' ')[1]}`}>
+            {exercise.difficulty}
+          </Text>
+        </View>
+      </View>
+
+      <View className="flex-row flex-wrap gap-2">
+        {exercise.muscleGroups.map((muscle) => (
+          <View key={muscle} className="bg-primary-500/20 px-3 py-1 rounded-full">
+            <Text className="text-primary-500 text-xs font-semibold capitalize">
+              {muscle}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </TouchableOpacity>
+  )
+}
+
+// Exercise Detail Modal
+function ExerciseDetailModal({ exercise, visible, onClose }: any) {
+  if (!exercise) return null
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <View className="flex-1 bg-dark-900">
+        {/* Header */}
+        <View className="bg-dark-700 px-6 py-4 border-b border-dark-50">
+          <View className="flex-row justify-between items-center">
+            <Text className="text-dark-50 text-2xl font-bold flex-1">
+              {exercise.name}
+            </Text>
+            <TouchableOpacity onPress={onClose}>
+              <Text className="text-primary-500 text-2xl font-bold">×</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <ScrollView className="flex-1 p-6">
+          {/* Description */}
+          <Text className="text-dark-700 text-lg mb-6">
+            {exercise.description}
+          </Text>
+
+          {/* Tags */}
+          <View className="flex-row flex-wrap gap-2 mb-6">
+            {exercise.muscleGroups.map((muscle: string) => (
+              <View key={muscle} className="bg-primary-500/20 px-3 py-2 rounded-full">
+                <Text className="text-primary-500 text-sm font-semibold capitalize">
+                  {muscle}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Instructions */}
+          <View className="mb-6">
+            <Text className="text-dark-50 text-xl font-bold mb-4">How to Perform</Text>
+            {exercise.instructions.map((instruction: string, index: number) => (
+              <View key={index} className="flex-row mb-3">
+                <View className="bg-primary-500 w-8 h-8 rounded-full items-center justify-center mr-3">
+                  <Text className="text-white font-bold">{index + 1}</Text>
+                </View>
+                <Text className="text-dark-700 flex-1 leading-6">{instruction}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Tips */}
+          {exercise.tips && exercise.tips.length > 0 && (
+            <View className="mb-6">
+              <Text className="text-dark-50 text-xl font-bold mb-4">Pro Tips</Text>
+              {exercise.tips.map((tip: string, index: number) => (
+                <View key={index} className="flex-row mb-3">
+                  <Text className="text-primary-500 mr-3">💡</Text>
+                  <Text className="text-dark-700 flex-1 leading-6">{tip}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Equipment */}
+          <View className="mb-6">
+            <Text className="text-dark-50 text-xl font-bold mb-3">Equipment</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {exercise.equipment.map((item: string) => (
+                <View key={item} className="bg-dark-700 px-4 py-2 rounded-lg">
+                  <Text className="text-dark-50 capitalize">{item}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* Add to Workout Button */}
+        <View className="px-6 py-4 bg-dark-700 border-t border-dark-50">
+          <TouchableOpacity
+            onPress={() => {
+              onClose()
+              // Navigate to add to workout
+            }}
+            className="bg-primary-500 rounded-xl py-4 items-center"
+          >
+            <Text className="text-white font-bold text-lg">Add to Workout</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  )
+}
