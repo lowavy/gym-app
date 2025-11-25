@@ -1,0 +1,232 @@
+// schemas/workout.ts - Zod validation schemas for workout features
+
+import { z } from 'zod'
+
+// ============================================================================
+// EXERCISE SCHEMAS
+// ============================================================================
+
+export const exerciseCategorySchema = z.enum([
+  'strength',
+  'cardio',
+  'flexibility',
+  'balance',
+  'sports',
+  'other',
+])
+
+export const muscleGroupSchema = z.enum([
+  'chest',
+  'back',
+  'shoulders',
+  'arms',
+  'core',
+  'legs',
+  'glutes',
+  'full-body',
+])
+
+export const equipmentSchema = z.enum([
+  'barbell',
+  'dumbbell',
+  'kettlebell',
+  'machine',
+  'cable',
+  'bodyweight',
+  'bands',
+  'other',
+  'none',
+])
+
+export const difficultySchema = z.enum([
+  'beginner',
+  'intermediate',
+  'advanced',
+  'expert',
+])
+
+export const createExerciseSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').max(100),
+  description: z.string().min(10, 'Description must be at least 10 characters'),
+  category: exerciseCategorySchema,
+  muscleGroups: z.array(muscleGroupSchema).min(1, 'Select at least one muscle group'),
+  equipment: z.array(equipmentSchema).min(1, 'Select at least one equipment type'),
+  difficulty: difficultySchema,
+  instructions: z.array(z.string()).min(1, 'Add at least one instruction step'),
+  tips: z.array(z.string()).optional(),
+  videoUrl: z.string().url().optional().or(z.literal('')),
+  imageUrl: z.string().url().optional().or(z.literal('')),
+})
+
+export const updateExerciseSchema = createExerciseSchema.partial()
+
+export type CreateExerciseFormInfer = z.infer<typeof createExerciseSchema>
+export type UpdateExerciseFormInfer = z.infer<typeof updateExerciseSchema>
+
+// ============================================================================
+// WORKOUT SET SCHEMAS
+// ============================================================================
+
+export const setTypeSchema = z.enum([
+  'working',
+  'warmup',
+  'dropset',
+  'superset',
+  'failure',
+  'amrap',
+])
+
+export const logSetSchema = z.object({
+  setNumber: z.number().int().positive(),
+  type: setTypeSchema.default('working'),
+  targetReps: z.number().int().positive().optional(),
+  actualReps: z.number().int().positive().optional(),
+  targetWeight: z.number().positive().optional(),
+  actualWeight: z.number().positive().optional(),
+  targetDuration: z.number().int().positive().optional(),
+  actualDuration: z.number().int().positive().optional(),
+  targetDistance: z.number().positive().optional(),
+  actualDistance: z.number().positive().optional(),
+  restTime: z.number().int().positive().optional(),
+  notes: z.string().max(500).optional(),
+  completed: z.boolean().default(false),
+})
+
+export type LogSetFormInfer = z.infer<typeof logSetSchema>
+
+// ============================================================================
+// WORKOUT SESSION SCHEMAS
+// ============================================================================
+
+export const workoutStatusSchema = z.enum([
+  'planned',
+  'in-progress',
+  'completed',
+  'skipped',
+])
+
+export const workoutExerciseSchema = z.object({
+  exerciseId: z.string().uuid(),
+  order: z.number().int().positive(),
+  sets: z.array(logSetSchema).min(1, 'Add at least one set'),
+  notes: z.string().max(500).optional(),
+  supersetWith: z.string().uuid().optional(),
+})
+
+export const createWorkoutSchema = z.object({
+  name: z.string().min(2, 'Workout name must be at least 2 characters').max(100),
+  description: z.string().max(500).optional(),
+  exercises: z.array(workoutExerciseSchema).min(1, 'Add at least one exercise'),
+  scheduledDate: z.string().datetime().optional(),
+  notes: z.string().max(1000).optional(),
+})
+
+export const updateWorkoutSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  description: z.string().max(500).optional(),
+  status: workoutStatusSchema.optional(),
+  exercises: z.array(workoutExerciseSchema).optional(),
+  notes: z.string().max(1000).optional(),
+  rating: z.number().int().min(1).max(5).optional(),
+})
+
+export const completeWorkoutSchema = z.object({
+  duration: z.number().int().positive(),
+  totalVolume: z.number().positive().optional(),
+  notes: z.string().max(1000).optional(),
+  rating: z.number().int().min(1).max(5).optional(),
+})
+
+export type CreateWorkoutFormInfer = z.infer<typeof createWorkoutSchema>
+export type UpdateWorkoutFormInfer = z.infer<typeof updateWorkoutSchema>
+export type CompleteWorkoutFormInfer = z.infer<typeof completeWorkoutSchema>
+
+// ============================================================================
+// WORKOUT PROGRAM SCHEMAS
+// ============================================================================
+
+export const programGoalSchema = z.enum([
+  'strength',
+  'hypertrophy',
+  'endurance',
+  'fat-loss',
+  'general-fitness',
+  'sport-specific',
+])
+
+export const createProgramSchema = z.object({
+  name: z.string().min(3, 'Program name must be at least 3 characters').max(100),
+  description: z.string().min(20, 'Description must be at least 20 characters'),
+  goal: programGoalSchema,
+  difficulty: difficultySchema,
+  durationWeeks: z.number().int().min(1).max(52),
+  daysPerWeek: z.number().int().min(1).max(7),
+  isPublic: z.boolean().default(false),
+  tags: z.array(z.string()).optional(),
+  imageUrl: z.string().url().optional().or(z.literal('')),
+})
+
+export type CreateProgramFormInfer = z.infer<typeof createProgramSchema>
+
+// ============================================================================
+// PERSONAL RECORD SCHEMAS
+// ============================================================================
+
+export const recordTypeSchema = z.enum([
+  'max-weight',
+  'max-reps',
+  'max-volume',
+  'best-time',
+])
+
+export const unitSchema = z.enum(['kg', 'lbs', 'reps', 'seconds', 'meters'])
+
+export const logPersonalRecordSchema = z.object({
+  exerciseId: z.string().uuid(),
+  recordType: recordTypeSchema,
+  value: z.number().positive(),
+  unit: unitSchema,
+  notes: z.string().max(500).optional(),
+})
+
+export type LogPersonalRecordFormInfer = z.infer<typeof logPersonalRecordSchema>
+
+// ============================================================================
+// WORKOUT PREFERENCES SCHEMAS
+// ============================================================================
+
+export const workoutPreferencesSchema = z.object({
+  defaultRestTime: z.number().int().min(30).max(600).default(90),
+  weightUnit: z.enum(['kg', 'lbs']).default('kg'),
+  distanceUnit: z.enum(['meters', 'miles', 'km']).default('meters'),
+  autoStartTimer: z.boolean().default(true),
+  timerSound: z.boolean().default(true),
+  vibrationEnabled: z.boolean().default(true),
+  showExerciseVideos: z.boolean().default(true),
+  trackBodyweight: z.boolean().default(true),
+  defaultPrivacy: z.enum(['private', 'friends', 'public']).default('private'),
+})
+
+export type WorkoutPreferencesFormInfer = z.infer<typeof workoutPreferencesSchema>
+
+// ============================================================================
+// QUERY/FILTER SCHEMAS
+// ============================================================================
+
+export const exerciseFilterSchema = z.object({
+  category: exerciseCategorySchema.optional(),
+  muscleGroup: muscleGroupSchema.optional(),
+  equipment: equipmentSchema.optional(),
+  difficulty: difficultySchema.optional(),
+  search: z.string().optional(),
+})
+
+export const workoutFilterSchema = z.object({
+  status: workoutStatusSchema.optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  programId: z.string().uuid().optional(),
+})
+
+export type ExerciseFilterFormInfer = z.infer<typeof exerciseFilterSchema>
+export type WorkoutFilterFormInfer = z.infer<typeof workoutFilterSchema>
