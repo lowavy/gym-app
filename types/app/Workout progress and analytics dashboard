@@ -1,0 +1,328 @@
+// app/progress.tsx - Workout progress and analytics dashboard
+
+import React, { useState } from 'react'
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Dimensions,
+} from 'react-native'
+import { router } from 'expo-router'
+import { useSelector } from 'react-redux'
+
+type TimeRange = '7d' | '30d' | '90d' | '1y'
+
+export default function ProgressDashboardScreen() {
+  const [selectedRange, setSelectedRange] = useState<TimeRange>('30d')
+  const { workouts, personalRecords, stats } = useSelector((state: any) => state.workout)
+
+  // Sample stats data
+  const sampleStats: WorkoutStats = {
+    totalWorkouts: 42,
+    totalDuration: 126000, // seconds
+    totalVolume: 125400, // kg
+    totalSets: 584,
+    totalReps: 4821,
+    averageWorkoutDuration: 3000, // seconds
+    currentStreak: 5,
+    longestStreak: 12,
+    favoriteExercises: [
+      { exerciseId: '1', name: 'Barbell Bench Press', count: 18 },
+      { exerciseId: '2', name: 'Barbell Squat', count: 15 },
+      { exerciseId: '3', name: 'Deadlift', count: 12 },
+    ],
+    volumeByMuscleGroup: {
+      chest: 28500,
+      back: 31200,
+      shoulders: 18900,
+      arms: 12400,
+      core: 8700,
+      legs: 45200,
+      glutes: 15800,
+      'full-body': 4700,
+    },
+    workoutsByDay: {},
+  }
+
+  const currentStats = stats || sampleStats
+
+  const formatDuration = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+  }
+
+  return (
+    <View className="flex-1 bg-dark-900">
+      {/* Header */}
+      <View className="bg-dark-700 px-6 py-4 border-b border-dark-50">
+        <View className="flex-row items-center mb-4">
+          <TouchableOpacity onPress={() => router.back()} className="mr-4">
+            <Text className="text-primary-500 text-2xl">←</Text>
+          </TouchableOpacity>
+          <Text className="text-dark-50 text-2xl font-bold">Your Progress</Text>
+        </View>
+
+        {/* Time Range Selector */}
+        <View className="flex-row gap-2">
+          <TimeRangeButton
+            label="7D"
+            active={selectedRange === '7d'}
+            onPress={() => setSelectedRange('7d')}
+          />
+          <TimeRangeButton
+            label="30D"
+            active={selectedRange === '30d'}
+            onPress={() => setSelectedRange('30d')}
+          />
+          <TimeRangeButton
+            label="90D"
+            active={selectedRange === '90d'}
+            onPress={() => setSelectedRange('90d')}
+          />
+          <TimeRangeButton
+            label="1Y"
+            active={selectedRange === '1y'}
+            onPress={() => setSelectedRange('1y')}
+          />
+        </View>
+      </View>
+
+      <ScrollView className="flex-1 p-6">
+        {/* Streak Card */}
+        <View className="bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl p-6 mb-6">
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-white/80 text-sm font-semibold">CURRENT STREAK</Text>
+            <Text className="text-6xl">🔥</Text>
+          </View>
+          <Text className="text-white text-5xl font-bold mb-2">
+            {currentStats.currentStreak}
+          </Text>
+          <Text className="text-white/80">
+            days • Best: {currentStats.longestStreak} days
+          </Text>
+        </View>
+
+        {/* Overview Stats */}
+        <View className="flex-row flex-wrap gap-3 mb-6">
+          <StatCard
+            icon="💪"
+            label="Total Workouts"
+            value={currentStats.totalWorkouts.toString()}
+            color="bg-dark-700"
+          />
+          <StatCard
+            icon="⏱️"
+            label="Total Time"
+            value={formatDuration(currentStats.totalDuration)}
+            color="bg-dark-700"
+          />
+          <StatCard
+            icon="🏋️"
+            label="Total Volume"
+            value={`${(currentStats.totalVolume / 1000).toFixed(1)}k kg`}
+            color="bg-dark-700"
+          />
+          <StatCard
+            icon="📊"
+            label="Total Sets"
+            value={currentStats.totalSets.toString()}
+            color="bg-dark-700"
+          />
+        </View>
+
+        {/* Volume by Muscle Group */}
+        <View className="bg-dark-700 rounded-2xl p-6 mb-6">
+          <Text className="text-dark-50 text-xl font-bold mb-4">
+            Volume by Muscle Group
+          </Text>
+          
+          {Object.entries(currentStats.volumeByMuscleGroup)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 5)
+            .map(([muscle, volume]) => {
+              const maxVolume = Math.max(...Object.values(currentStats.volumeByMuscleGroup))
+              const percentage = (volume / maxVolume) * 100
+              
+              return (
+                <View key={muscle} className="mb-4">
+                  <View className="flex-row justify-between items-center mb-2">
+                    <Text className="text-dark-50 capitalize font-semibold">
+                      {muscle}
+                    </Text>
+                    <Text className="text-dark-700 text-sm">
+                      {(volume / 1000).toFixed(1)}k kg
+                    </Text>
+                  </View>
+                  <View className="h-3 bg-dark-900 rounded-full overflow-hidden">
+                    <View
+                      className="h-full bg-primary-500"
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </View>
+                </View>
+              )
+            })}
+        </View>
+
+        {/* Personal Records */}
+        <View className="bg-dark-700 rounded-2xl p-6 mb-6">
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-dark-50 text-xl font-bold">Personal Records</Text>
+            <TouchableOpacity onPress={() => router.push('/personal-records')}>
+              <Text className="text-primary-500 font-semibold">See All →</Text>
+            </TouchableOpacity>
+          </View>
+
+          {personalRecords.length > 0 ? (
+            personalRecords.slice(0, 3).map((record: PersonalRecord) => (
+              <View
+                key={record.id}
+                className="bg-dark-900 rounded-xl p-4 mb-3 flex-row items-center"
+              >
+                <View className="bg-primary-500 w-12 h-12 rounded-full items-center justify-center mr-4">
+                  <Text className="text-white text-2xl">🏆</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-dark-50 font-bold mb-1">
+                    {record.exercise?.name || 'Exercise'}
+                  </Text>
+                  <Text className="text-dark-700 text-sm">
+                    {record.value} {record.unit}
+                  </Text>
+                </View>
+                <Text className="text-primary-500 font-bold text-lg">
+                  PR
+                </Text>
+              </View>
+            ))
+          ) : (
+            <View className="items-center py-6">
+              <Text className="text-6xl mb-3">🏆</Text>
+              <Text className="text-dark-700 text-center">
+                Complete workouts to set personal records
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Favorite Exercises */}
+        <View className="bg-dark-700 rounded-2xl p-6 mb-6">
+          <Text className="text-dark-50 text-xl font-bold mb-4">
+            Most Performed Exercises
+          </Text>
+          
+          {currentStats.favoriteExercises.map((exercise, index) => (
+            <View
+              key={exercise.exerciseId}
+              className="flex-row items-center mb-4 last:mb-0"
+            >
+              <View className="bg-primary-500/20 w-10 h-10 rounded-full items-center justify-center mr-4">
+                <Text className="text-primary-500 font-bold">{index + 1}</Text>
+              </View>
+              <View className="flex-1">
+                <Text className="text-dark-50 font-semibold mb-1">
+                  {exercise.name}
+                </Text>
+                <View className="h-2 bg-dark-900 rounded-full overflow-hidden">
+                  <View
+                    className="h-full bg-primary-500"
+                    style={{
+                      width: `${(exercise.count / currentStats.favoriteExercises[0].count) * 100}%`,
+                    }}
+                  />
+                </View>
+              </View>
+              <Text className="text-dark-700 ml-4 font-semibold">
+                {exercise.count}×
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Weekly Activity */}
+        <View className="bg-dark-700 rounded-2xl p-6 mb-6">
+          <Text className="text-dark-50 text-xl font-bold mb-4">
+            Weekly Activity
+          </Text>
+          <WeeklyActivityChart workouts={workouts} />
+        </View>
+      </ScrollView>
+    </View>
+  )
+}
+
+// Time Range Button
+function TimeRangeButton({ label, active, onPress }: any) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className={`flex-1 py-2 rounded-lg ${
+        active ? 'bg-primary-500' : 'bg-dark-900'
+      }`}
+    >
+      <Text
+        className={`text-center font-semibold ${
+          active ? 'text-white' : 'text-dark-700'
+        }`}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  )
+}
+
+// Stat Card Component
+function StatCard({ icon, label, value, color }: any) {
+  const width = (Dimensions.get('window').width - 48 - 12) / 2
+
+  return (
+    <View
+      className={`${color} rounded-xl p-4`}
+      style={{ width }}
+    >
+      <Text className="text-3xl mb-2">{icon}</Text>
+      <Text className="text-dark-50 text-2xl font-bold mb-1">{value}</Text>
+      <Text className="text-dark-700 text-sm">{label}</Text>
+    </View>
+  )
+}
+
+// Weekly Activity Chart
+function WeeklyActivityChart({ workouts }: any) {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  
+  // Sample data - in real app, calculate from workouts
+  const activityData = [
+    { day: 'Mon', count: 2, completed: true },
+    { day: 'Tue', count: 0, completed: false },
+    { day: 'Wed', count: 1, completed: true },
+    { day: 'Thu', count: 1, completed: true },
+    { day: 'Fri', count: 0, completed: false },
+    { day: 'Sat', count: 2, completed: true },
+    { day: 'Sun', count: 1, completed: true },
+  ]
+
+  const maxCount = Math.max(...activityData.map(d => d.count), 1)
+
+  return (
+    <View className="flex-row items-end justify-between" style={{ height: 120 }}>
+      {activityData.map((data, index) => {
+        const height = (data.count / maxCount) * 80 + 20
+        
+        return (
+          <View key={index} className="items-center flex-1">
+            <View
+              className={`w-8 rounded-lg mb-2 ${
+                data.completed ? 'bg-primary-500' : 'bg-dark-900'
+              }`}
+              style={{ height }}
+            />
+            <Text className="text-dark-700 text-xs">{data.day}</Text>
+          </View>
+        )
+      })}
+    </View>
+  )
+}
