@@ -1,0 +1,258 @@
+// types/workout.d.ts - Complete workout type definitions
+
+// ============================================================================
+// EXERCISE TYPES
+// ============================================================================
+
+type ExerciseCategory = 
+  | 'strength'
+  | 'cardio'
+  | 'flexibility'
+  | 'balance'
+  | 'sports'
+  | 'other'
+
+type MuscleGroup = 
+  | 'chest'
+  | 'back'
+  | 'shoulders'
+  | 'arms'
+  | 'core'
+  | 'legs'
+  | 'glutes'
+  | 'full-body'
+
+type EquipmentType = 
+  | 'barbell'
+  | 'dumbbell'
+  | 'kettlebell'
+  | 'machine'
+  | 'cable'
+  | 'bodyweight'
+  | 'bands'
+  | 'other'
+  | 'none'
+
+type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced' | 'expert'
+
+interface Exercise {
+  id: string
+  name: string
+  description: string
+  category: ExerciseCategory
+  muscleGroups: MuscleGroup[]
+  equipment: EquipmentType[]
+  difficulty: DifficultyLevel
+  instructions: string[]
+  tips?: string[]
+  videoUrl?: string
+  imageUrl?: string
+  isCustom: boolean
+  createdBy?: string
+  createdAt: string
+  updatedAt: string
+}
+
+// ============================================================================
+// WORKOUT SET TYPES
+// ============================================================================
+
+type SetType = 
+  | 'working'      // Regular working set
+  | 'warmup'       // Warm-up set
+  | 'dropset'      // Drop set
+  | 'superset'     // Superset
+  | 'failure'      // To failure
+  | 'amrap'        // As many reps as possible
+
+interface WorkoutSet {
+  id: string
+  setNumber: number
+  type: SetType
+  targetReps?: number
+  actualReps?: number
+  targetWeight?: number
+  actualWeight?: number
+  targetDuration?: number  // seconds
+  actualDuration?: number
+  targetDistance?: number  // meters
+  actualDistance?: number
+  restTime?: number        // seconds
+  notes?: string
+  completed: boolean
+  completedAt?: string
+}
+
+// ============================================================================
+// WORKOUT EXERCISE TYPES
+// ============================================================================
+
+interface WorkoutExercise {
+  id: string
+  exerciseId: string
+  exercise?: Exercise  // Populated exercise details
+  order: number
+  sets: WorkoutSet[]
+  notes?: string
+  supersetWith?: string  // ID of another WorkoutExercise
+}
+
+// ============================================================================
+// WORKOUT SESSION TYPES
+// ============================================================================
+
+type WorkoutStatus = 'planned' | 'in-progress' | 'completed' | 'skipped'
+
+interface WorkoutSession {
+  id: string
+  userId: string
+  programId?: string  // If part of a program
+  name: string
+  description?: string
+  status: WorkoutStatus
+  exercises: WorkoutExercise[]
+  scheduledDate?: string
+  startedAt?: string
+  completedAt?: string
+  duration?: number  // seconds
+  totalVolume?: number  // kg or lbs
+  totalSets?: number
+  totalReps?: number
+  notes?: string
+  rating?: number  // 1-5 stars
+  createdAt: string
+  updatedAt: string
+}
+
+// ============================================================================
+// WORKOUT PROGRAM TYPES
+// ============================================================================
+
+type ProgramGoal = 
+  | 'strength'
+  | 'hypertrophy'
+  | 'endurance'
+  | 'fat-loss'
+  | 'general-fitness'
+  | 'sport-specific'
+
+interface ProgramWeek {
+  weekNumber: number
+  workouts: WorkoutSession[]
+}
+
+interface WorkoutProgram {
+  id: string
+  name: string
+  description: string
+  goal: ProgramGoal
+  difficulty: DifficultyLevel
+  durationWeeks: number
+  daysPerWeek: number
+  weeks: ProgramWeek[]
+  isPublic: boolean
+  createdBy: string
+  tags?: string[]
+  imageUrl?: string
+  createdAt: string
+  updatedAt: string
+}
+
+// ============================================================================
+// PERSONAL RECORDS
+// ============================================================================
+
+interface PersonalRecord {
+  id: string
+  userId: string
+  exerciseId: string
+  exercise?: Exercise
+  recordType: 'max-weight' | 'max-reps' | 'max-volume' | 'best-time'
+  value: number
+  unit: 'kg' | 'lbs' | 'reps' | 'seconds' | 'meters'
+  achievedAt: string
+  workoutSessionId?: string
+  notes?: string
+  previousRecord?: number
+}
+
+// ============================================================================
+// WORKOUT STATS & ANALYTICS
+// ============================================================================
+
+interface WorkoutStats {
+  totalWorkouts: number
+  totalDuration: number  // seconds
+  totalVolume: number
+  totalSets: number
+  totalReps: number
+  averageWorkoutDuration: number
+  currentStreak: number
+  longestStreak: number
+  favoriteExercises: Array<{
+    exerciseId: string
+    name: string
+    count: number
+  }>
+  volumeByMuscleGroup: Record<MuscleGroup, number>
+  workoutsByDay: Record<string, number>  // ISO date -> count
+}
+
+interface ExerciseHistory {
+  exerciseId: string
+  exercise?: Exercise
+  sessions: Array<{
+    date: string
+    sets: WorkoutSet[]
+    totalVolume: number
+    maxWeight: number
+    totalReps: number
+  }>
+  personalRecords: PersonalRecord[]
+  volumeProgression: Array<{
+    date: string
+    volume: number
+  }>
+}
+
+// ============================================================================
+// REST TIMER
+// ============================================================================
+
+interface RestTimer {
+  duration: number  // seconds
+  remaining: number
+  isActive: boolean
+  isPaused: boolean
+  startedAt?: string
+  exerciseId?: string
+  setNumber?: number
+}
+
+// ============================================================================
+// USER WORKOUT PREFERENCES
+// ============================================================================
+
+interface WorkoutPreferences {
+  defaultRestTime: number  // seconds
+  weightUnit: 'kg' | 'lbs'
+  distanceUnit: 'meters' | 'miles' | 'km'
+  autoStartTimer: boolean
+  timerSound: boolean
+  vibrationEnabled: boolean
+  showExerciseVideos: boolean
+  trackBodyweight: boolean
+  defaultPrivacy: 'private' | 'friends' | 'public'
+}
+
+// ============================================================================
+// FORM TYPES (imported from schemas)
+// ============================================================================
+
+type CreateExerciseForm = import('../schemas/workout').CreateExerciseFormInfer
+type UpdateExerciseForm = import('../schemas/workout').UpdateExerciseFormInfer
+type CreateWorkoutForm = import('../schemas/workout').CreateWorkoutFormInfer
+type UpdateWorkoutForm = import('../schemas/workout').UpdateWorkoutFormInfer
+type LogSetForm = import('../schemas/workout').LogSetFormInfer
+type CreateProgramForm = import('../schemas/workout').CreateProgramFormInfer
+type WorkoutPreferencesForm = import('../schemas/workout').WorkoutPreferencesFormInfer
