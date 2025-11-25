@@ -1,0 +1,419 @@
+// state/slices/workoutSlice.ts - Redux slice for workout management
+
+import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+
+interface WorkoutState {
+  // Current active workout session
+  activeWorkout: WorkoutSession | null
+  activeExerciseIndex: number
+  
+  // Workout history
+  workouts: WorkoutSession[]
+  
+  // Exercise library
+  exercises: Exercise[]
+  customExercises: Exercise[]
+  
+  // Programs
+  programs: WorkoutProgram[]
+  activeProgram: WorkoutProgram | null
+  
+  // Personal records
+  personalRecords: PersonalRecord[]
+  
+  // Rest timer
+  restTimer: RestTimer
+  
+  // User preferences
+  preferences: WorkoutPreferences
+  
+  // Stats
+  stats: WorkoutStats | null
+  
+  // UI state
+  isLoading: boolean
+  error: string | null
+}
+
+const initialState: WorkoutState = {
+  activeWorkout: null,
+  activeExerciseIndex: 0,
+  workouts: [],
+  exercises: [],
+  customExercises: [],
+  programs: [],
+  activeProgram: null,
+  personalRecords: [],
+  restTimer: {
+    duration: 90,
+    remaining: 90,
+    isActive: false,
+    isPaused: false,
+  },
+  preferences: {
+    defaultRestTime: 90,
+    weightUnit: 'kg',
+    distanceUnit: 'meters',
+    autoStartTimer: true,
+    timerSound: true,
+    vibrationEnabled: true,
+    showExerciseVideos: true,
+    trackBodyweight: true,
+    defaultPrivacy: 'private',
+  },
+  stats: null,
+  isLoading: false,
+  error: null,
+}
+
+const workoutSlice = createSlice({
+  name: 'workout',
+  initialState,
+  reducers: {
+    // ========================================================================
+    // WORKOUT SESSION ACTIONS
+    // ========================================================================
+    
+    startWorkout: (state, action: PayloadAction<WorkoutSession>) => {
+      state.activeWorkout = {
+        ...action.payload,
+        status: 'in-progress',
+        startedAt: new Date().toISOString(),
+      }
+      state.activeExerciseIndex = 0
+    },
+    
+    pauseWorkout: (state) => {
+      if (state.activeWorkout) {
+        state.activeWorkout.status = 'in-progress'
+      }
+    },
+    
+    resumeWorkout: (state) => {
+      if (state.activeWorkout) {
+        state.activeWorkout.status = 'in-progress'
+      }
+    },
+    
+    completeWorkout: (state, action: PayloadAction<{
+      duration: number
+      notes?: string
+      rating?: number
+    }>) => {
+      if (state.activeWorkout) {
+        const completedWorkout = {
+          ...state.activeWorkout,
+          status: 'completed' as const,
+          completedAt: new Date().toISOString(),
+          duration: action.payload.duration,
+          notes: action.payload.notes,
+          rating: action.payload.rating,
+        }
+        
+        state.workouts.unshift(completedWorkout)
+        state.activeWorkout = null
+        state.activeExerciseIndex = 0
+      }
+    },
+    
+    cancelWorkout: (state) => {
+      state.activeWorkout = null
+      state.activeExerciseIndex = 0
+      state.restTimer = {
+        ...state.restTimer,
+        isActive: false,
+        isPaused: false,
+      }
+    },
+    
+    updateWorkoutNotes: (state, action: PayloadAction<string>) => {
+      if (state.activeWorkout) {
+        state.activeWorkout.notes = action.payload
+      }
+    },
+    
+    // ========================================================================
+    // EXERCISE NAVIGATION
+    // ========================================================================
+    
+    nextExercise: (state) => {
+      if (state.activeWorkout && 
+          state.activeExerciseIndex < state.activeWorkout.exercises.length - 1) {
+        state.activeExerciseIndex++
+      }
+    },
+    
+    previousExercise: (state) => {
+      if (state.activeExerciseIndex > 0) {
+        state.activeExerciseIndex--
+      }
+    },
+    
+    goToExercise: (state, action: PayloadAction<number>) => {
+      if (state.activeWorkout && 
+          action.payload >= 0 && 
+          action.payload < state.activeWorkout.exercises.length) {
+        state.activeExerciseIndex = action.payload
+      }
+    },
+    
+    // ========================================================================
+    // SET LOGGING
+    // ========================================================================
+    
+    logSet: (state, action: PayloadAction<{
+      exerciseIndex: number
+      setIndex: number
+      data: Partial<WorkoutSet>
+    }>) => {
+      if (state.activeWorkout) {
+        const { exerciseIndex, setIndex, data } = action.payload
+        const exercise = state.activeWorkout.exercises[exerciseIndex]
+        
+        if (exercise && exercise.sets[setIndex]) {
+          exercise.sets[setIndex] = {
+            ...exercise.sets[setIndex],
+            ...data,
+            completed: true,
+            completedAt: new Date().toISOString(),
+          }
+          
+          // Auto-start rest timer if enabled
+          if (state.preferences.autoStartTimer) {
+            state.restTimer = {
+              duration: exercise.sets[setIndex].restTime || state.preferences.defaultRestTime,
+              remaining: exercise.sets[setIndex].restTime || state.preferences.defaultRestTime,
+              isActive: true,
+              isPaused: false,
+              startedAt: new Date().toISOString(),
+              exerciseId: exercise.exerciseId,
+              setNumber: setIndex + 1,
+            }
+          }
+        }
+      }
+    },
+    
+    addSet: (state, action: PayloadAction<number>) => {
+      if (state.activeWorkout) {
+        const exerciseIndex = action.payload
+        const exercise = state.activeWorkout.exercises[exerciseIndex]
+        
+        if (exercise) {
+          const lastSet = exercise.sets[exercise.sets.length - 1]
+          const newSet: WorkoutSet = {
+            id: `set_${Date.now()}`,
+            setNumber: exercise.sets.length + 1,
+            type: 'working',
+            targetReps: lastSet?.targetReps,
+            targetWeight: lastSet?.targetWeight,
+            restTime: lastSet?.restTime || state.preferences.defaultRestTime,
+            completed: false,
+          }
+          exercise.sets.push(newSet)
+        }
+      }
+    },
+    
+    removeSet: (state, action: PayloadAction<{
+      exerciseIndex: number
+      setIndex: number
+    }>) => {
+      if (state.activeWorkout) {
+        const { exerciseIndex, setIndex } = action.payload
+        const exercise = state.activeWorkout.exercises[exerciseIndex]
+        
+        if (exercise && exercise.sets.length > 1) {
+          exercise.sets.splice(setIndex, 1)
+          // Renumber remaining sets
+          exercise.sets.forEach((set, index) => {
+            set.setNumber = index + 1
+          })
+        }
+      }
+    },
+    
+    // ========================================================================
+    // REST TIMER ACTIONS
+    // ========================================================================
+    
+    startRestTimer: (state, action: PayloadAction<{
+      duration?: number
+      exerciseId?: string
+      setNumber?: number
+    }>) => {
+      const duration = action.payload.duration || state.preferences.defaultRestTime
+      state.restTimer = {
+        duration,
+        remaining: duration,
+        isActive: true,
+        isPaused: false,
+        startedAt: new Date().toISOString(),
+        exerciseId: action.payload.exerciseId,
+        setNumber: action.payload.setNumber,
+      }
+    },
+    
+    pauseRestTimer: (state) => {
+      state.restTimer.isPaused = true
+    },
+    
+    resumeRestTimer: (state) => {
+      state.restTimer.isPaused = false
+    },
+    
+    stopRestTimer: (state) => {
+      state.restTimer = {
+        ...state.restTimer,
+        isActive: false,
+        isPaused: false,
+        remaining: state.restTimer.duration,
+      }
+    },
+    
+    tickRestTimer: (state) => {
+      if (state.restTimer.isActive && !state.restTimer.isPaused && state.restTimer.remaining > 0) {
+        state.restTimer.remaining--
+      }
+      
+      if (state.restTimer.remaining === 0) {
+        state.restTimer.isActive = false
+      }
+    },
+    
+    adjustRestTimer: (state, action: PayloadAction<number>) => {
+      const newRemaining = state.restTimer.remaining + action.payload
+      if (newRemaining > 0) {
+        state.restTimer.remaining = newRemaining
+        state.restTimer.duration = newRemaining
+      }
+    },
+    
+    // ========================================================================
+    // EXERCISES LIBRARY
+    // ========================================================================
+    
+    setExercises: (state, action: PayloadAction<Exercise[]>) => {
+      state.exercises = action.payload
+    },
+    
+    addCustomExercise: (state, action: PayloadAction<Exercise>) => {
+      state.customExercises.unshift(action.payload)
+    },
+    
+    updateCustomExercise: (state, action: PayloadAction<Exercise>) => {
+      const index = state.customExercises.findIndex(e => e.id === action.payload.id)
+      if (index !== -1) {
+        state.customExercises[index] = action.payload
+      }
+    },
+    
+    deleteCustomExercise: (state, action: PayloadAction<string>) => {
+      state.customExercises = state.customExercises.filter(e => e.id !== action.payload)
+    },
+    
+    // ========================================================================
+    // PERSONAL RECORDS
+    // ========================================================================
+    
+    addPersonalRecord: (state, action: PayloadAction<PersonalRecord>) => {
+      state.personalRecords.unshift(action.payload)
+    },
+    
+    setPersonalRecords: (state, action: PayloadAction<PersonalRecord[]>) => {
+      state.personalRecords = action.payload
+    },
+    
+    // ========================================================================
+    // PROGRAMS
+    // ========================================================================
+    
+    setPrograms: (state, action: PayloadAction<WorkoutProgram[]>) => {
+      state.programs = action.payload
+    },
+    
+    setActiveProgram: (state, action: PayloadAction<WorkoutProgram | null>) => {
+      state.activeProgram = action.payload
+    },
+    
+    // ========================================================================
+    // PREFERENCES
+    // ========================================================================
+    
+    updatePreferences: (state, action: PayloadAction<Partial<WorkoutPreferences>>) => {
+      state.preferences = {
+        ...state.preferences,
+        ...action.payload,
+      }
+    },
+    
+    // ========================================================================
+    // STATS
+    // ========================================================================
+    
+    setStats: (state, action: PayloadAction<WorkoutStats>) => {
+      state.stats = action.payload
+    },
+    
+    // ========================================================================
+    // WORKOUT HISTORY
+    // ========================================================================
+    
+    setWorkouts: (state, action: PayloadAction<WorkoutSession[]>) => {
+      state.workouts = action.payload
+    },
+    
+    addWorkout: (state, action: PayloadAction<WorkoutSession>) => {
+      state.workouts.unshift(action.payload)
+    },
+    
+    // ========================================================================
+    // LOADING & ERROR
+    // ========================================================================
+    
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.isLoading = action.payload
+    },
+    
+    setError: (state, action: PayloadAction<string | null>) => {
+      state.error = action.payload
+    },
+  },
+})
+
+export const {
+  startWorkout,
+  pauseWorkout,
+  resumeWorkout,
+  completeWorkout,
+  cancelWorkout,
+  updateWorkoutNotes,
+  nextExercise,
+  previousExercise,
+  goToExercise,
+  logSet,
+  addSet,
+  removeSet,
+  startRestTimer,
+  pauseRestTimer,
+  resumeRestTimer,
+  stopRestTimer,
+  tickRestTimer,
+  adjustRestTimer,
+  setExercises,
+  addCustomExercise,
+  updateCustomExercise,
+  deleteCustomExercise,
+  addPersonalRecord,
+  setPersonalRecords,
+  setPrograms,
+  setActiveProgram,
+  updatePreferences,
+  setStats,
+  setWorkouts,
+  addWorkout,
+  setLoading,
+  setError,
+} = workoutSlice.actions
+
+export default workoutSlice.reducer
